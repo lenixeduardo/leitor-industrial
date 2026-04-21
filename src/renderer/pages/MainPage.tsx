@@ -77,14 +77,24 @@ export default function MainPage() {
             <span className="text-gray-400">{state.sessao?.nome}</span>
           </p>
         </div>
-        <button
-          onClick={() => dispatch({ type: 'GO_HIBERNACAO' })}
-          className="text-gray-700 hover:text-gray-400 text-xs tracking-widest uppercase
-                     border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded
-                     transition-colors"
-        >
-          Sair
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => dispatch({ type: 'NAVIGATE', page: 'admin' })}
+            className="text-gray-700 hover:text-gray-400 text-xs tracking-widest uppercase
+                       border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded
+                       transition-colors"
+          >
+            Admin
+          </button>
+          <button
+            onClick={() => dispatch({ type: 'GO_HIBERNACAO' })}
+            className="text-gray-700 hover:text-gray-400 text-xs tracking-widest uppercase
+                       border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded
+                       transition-colors"
+          >
+            Sair
+          </button>
+        </div>
       </header>
 
       {/* Content */}

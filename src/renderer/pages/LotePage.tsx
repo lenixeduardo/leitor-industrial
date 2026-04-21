@@ -1,37 +1,71 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from '../store/sessionStore'
-import type { Leitura } from '../../shared/types'
+import type { Leitura, LeiturasPaginadas } from '../../shared/types'
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const
+
+type PaginacaoState = Omit<LeiturasPaginadas, 'data'>
+
+const INITIAL_PAGINACAO: PaginacaoState = {
+  total: 0,
+  page: 1,
+  pageSize: 20,
+  totalPages: 1,
+}
 
 export default function LotePage() {
   const { state, dispatch } = useSession()
   const lote = state.loteAtivo
 
   const [leituras, setLeituras] = useState<Leitura[]>([])
+  const [paginacao, setPaginacao] = useState<PaginacaoState>(INITIAL_PAGINACAO)
   const [loadingLeituras, setLoadingLeituras] = useState(true)
   const [coletando, setColetando] = useState(false)
   const [erroColeta, setErroColeta] = useState('')
   const [modalAberto, setModalAberto] = useState(false)
   const [encerrando, setEncerrando] = useState(false)
 
-  const loadLeituras = useCallback(async () => {
-    if (!lote) return
-    setLoadingLeituras(true)
-    const data = await window.batchReader.lotes.getLeituras(lote.id)
-    setLeituras(data)
-    setLoadingLeituras(false)
-  }, [lote])
+  const loadLeituras = useCallback(
+    async (page: number, pageSize: number) => {
+      if (!lote) return
+      setLoadingLeituras(true)
+      const result = await window.batchReader.lotes.getLeituras({
+        loteId: lote.id,
+        page,
+        pageSize,
+      })
+      setLeituras(result.data)
+      setPaginacao({
+        total: result.total,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+      })
+      setLoadingLeituras(false)
+    },
+    [lote]
+  )
 
+  // Carrega página 1 ao montar e toda vez que o lote mudar
   useEffect(() => {
-    loadLeituras()
+    loadLeituras(1, INITIAL_PAGINACAO.pageSize)
   }, [loadLeituras])
 
-  // Quando serial:complete chega → vai para hibernação (fluxo normal pós-coleta)
+  // Listener: serial:complete → hibernação após coleta bem-sucedida
   useEffect(() => {
     const unsubscribe = window.batchReader.onSerialComplete(() => {
       dispatch({ type: 'GO_HIBERNACAO' })
     })
     return unsubscribe
   }, [dispatch])
+
+  const goToPage = (newPage: number) => {
+    loadLeituras(newPage, paginacao.pageSize)
+  }
+
+  const changePageSize = (newSize: number) => {
+    loadLeituras(1, newSize)
+  }
 
   const handleColetar = async () => {
     if (!lote || !state.sessao) return
@@ -43,8 +77,7 @@ export default function LotePage() {
       operadorId: state.sessao.operadorId,
     })
 
-    // Em caso de sucesso, serial:complete dispara GO_HIBERNACAO antes desta linha.
-    // Este branch trata apenas erros que impedem a coleta.
+    // Sucesso: serial:complete dispara GO_HIBERNACAO — não limpar coletando aqui
     if (!result.success) {
       setErroColeta(result.error ?? 'Erro na leitura das portas')
       setColetando(false)
@@ -58,15 +91,11 @@ export default function LotePage() {
     const result = await window.batchReader.lotes.encerrar({ loteId: lote.id })
 
     if (result.success) {
-      dispatch({ type: 'SET_LOTE_ATIVO', lote: null }) // volta para MainPage
+      dispatch({ type: 'SET_LOTE_ATIVO', lote: null })
     } else {
       setEncerrando(false)
       setModalAberto(false)
     }
-  }
-
-  const handleVoltar = () => {
-    dispatch({ type: 'SET_LOTE_ATIVO', lote: null })
   }
 
   if (!lote) {
@@ -77,6 +106,8 @@ export default function LotePage() {
     )
   }
 
+  const { total, page, pageSize, totalPages } = paginacao
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       {/* Header */}
@@ -84,7 +115,7 @@ export default function LotePage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             <button
-              onClick={handleVoltar}
+              onClick={() => dispatch({ type: 'SET_LOTE_ATIVO', lote: null })}
               className="text-gray-600 hover:text-gray-400 text-sm transition-colors"
             >
               ← Voltar
@@ -142,19 +173,35 @@ export default function LotePage() {
       </header>
 
       {/* Leituras */}
-      <main className="flex-1 p-6 max-w-4xl w-full mx-auto">
+      <main className="flex-1 p-6 max-w-4xl w-full mx-auto flex flex-col">
+        {/* Toolbar */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-400 text-xs tracking-widest uppercase">
             Leituras registradas
           </h2>
-          <span className="text-gray-700 text-xs">{leituras.length} registro(s)</span>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-700 text-xs">{total} registro(s)</span>
+            <select
+              value={pageSize}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+              className="bg-[#111] border border-gray-800 text-gray-400 text-xs rounded-lg
+                         px-2 py-1 focus:outline-none focus:border-gray-600 transition-colors
+                         cursor-pointer"
+            >
+              {PAGE_SIZE_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s} por página
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {loadingLeituras ? (
           <div className="text-gray-700 text-sm text-center py-24">
             Carregando leituras...
           </div>
-        ) : leituras.length === 0 ? (
+        ) : total === 0 ? (
           <div className="text-center py-24 space-y-2">
             <p className="text-gray-700 text-sm">Nenhuma leitura registrada.</p>
             <p className="text-gray-800 text-xs">
@@ -162,43 +209,79 @@ export default function LotePage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800/60 text-gray-600 text-xs tracking-widest uppercase">
-                  <th className="text-left py-2 pr-6 font-normal">Data/Hora</th>
-                  <th className="text-left py-2 pr-6 font-normal">Porta</th>
-                  <th className="text-left py-2 font-normal">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leituras.map((l) => (
-                  <tr
-                    key={l.id}
-                    className="border-b border-gray-900 hover:bg-[#111]/50 transition-colors"
-                  >
-                    <td className="py-2.5 pr-6 text-gray-600 font-mono text-xs">
-                      {new Date(l.coletado_em).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="py-2.5 pr-6 text-amber-500/60 font-mono text-xs">
-                      {l.porta}
-                    </td>
-                    <td
-                      className={`py-2.5 font-mono text-xs ${
-                        l.valor === 'TIMEOUT'
-                          ? 'text-yellow-600'
-                          : l.valor.startsWith('ERRO')
-                          ? 'text-red-500'
-                          : 'text-emerald-400'
-                      }`}
-                    >
-                      {l.valor}
-                    </td>
+          <>
+            {/* Tabela */}
+            <div className="overflow-auto flex-1">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800/60 text-gray-600 text-xs tracking-widest uppercase">
+                    <th className="text-left py-2 pr-6 font-normal">Data/Hora</th>
+                    <th className="text-left py-2 pr-6 font-normal">Porta</th>
+                    <th className="text-left py-2 font-normal">Valor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {leituras.map((l) => (
+                    <tr
+                      key={l.id}
+                      className="border-b border-gray-900 hover:bg-[#111]/50 transition-colors"
+                    >
+                      <td className="py-2.5 pr-6 text-gray-600 font-mono text-xs">
+                        {new Date(l.coletado_em).toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-2.5 pr-6 text-amber-500/60 font-mono text-xs">
+                        {l.porta}
+                      </td>
+                      <td
+                        className={`py-2.5 font-mono text-xs ${
+                          l.valor === 'TIMEOUT'
+                            ? 'text-yellow-600'
+                            : l.valor.startsWith('ERRO')
+                            ? 'text-red-500'
+                            : 'text-emerald-400'
+                        }`}
+                      >
+                        {l.valor}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-900">
+                <button
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page <= 1 || loadingLeituras}
+                  className="text-gray-600 hover:text-gray-400 disabled:opacity-30
+                             disabled:cursor-not-allowed text-xs transition-colors
+                             px-3 py-1.5 rounded border border-gray-800 hover:border-gray-600"
+                >
+                  ← Anterior
+                </button>
+
+                <span className="text-gray-600 text-xs">
+                  Página{' '}
+                  <span className="text-gray-400 font-medium">{page}</span>
+                  {' '}de{' '}
+                  <span className="text-gray-400 font-medium">{totalPages}</span>
+                  <span className="text-gray-700 ml-3">· {total} registros</span>
+                </span>
+
+                <button
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page >= totalPages || loadingLeituras}
+                  className="text-gray-600 hover:text-gray-400 disabled:opacity-30
+                             disabled:cursor-not-allowed text-xs transition-colors
+                             px-3 py-1.5 rounded border border-gray-800 hover:border-gray-600"
+                >
+                  Próxima →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 

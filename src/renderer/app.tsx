@@ -3,6 +3,7 @@ import HibernacaoPage from './pages/HibernacaoPage'
 import AuthPage from './pages/AuthPage'
 import MainPage from './pages/MainPage'
 import LotePage from './pages/LotePage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   const { state } = useSession()
@@ -12,6 +13,7 @@ export default function App() {
     auth: <AuthPage />,
     main: <MainPage />,
     lote: <LotePage />,
+    admin: <AdminPage />,
   }
 
   return (

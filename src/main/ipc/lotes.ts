@@ -1,11 +1,12 @@
 import { ipcMain } from 'electron'
 import type {
   Lote,
-  Leitura,
   LoteCreatePayload,
   LoteCreateResult,
   LoteEncerrarPayload,
   LoteEncerrarResult,
+  LeiturasPaginadasParams,
+  LeiturasPaginadas,
 } from '../../shared/types'
 import {
   listLotesAbertos,
@@ -45,8 +46,8 @@ export function registerLotesHandlers(): void {
 
   ipcMain.handle(
     'lotes:get-leituras',
-    async (_, loteId: number): Promise<Leitura[]> => {
-      return getLeiturasByLote(loteId)
+    async (_, params: LeiturasPaginadasParams): Promise<LeiturasPaginadas> => {
+      return getLeiturasByLote(params.loteId, params.page, params.pageSize)
     }
   )
 }

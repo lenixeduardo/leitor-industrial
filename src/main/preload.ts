@@ -6,10 +6,16 @@ import type {
   LoteCreateResult,
   LoteEncerrarPayload,
   LoteEncerrarResult,
+  LeiturasPaginadasParams,
+  LeiturasPaginadas,
   SerialReadAllPayload,
   SerialReadAllResult,
   Lote,
-  Leitura,
+  Operador,
+  OperadorCreatePayload,
+  OperadorCreateResult,
+  OperadorTogglePayload,
+  OperadorToggleResult,
   BatchReaderAPI,
 } from '../shared/types'
 
@@ -28,13 +34,24 @@ const api: BatchReaderAPI = {
     encerrar: (payload: LoteEncerrarPayload): Promise<LoteEncerrarResult> =>
       ipcRenderer.invoke('lotes:encerrar', payload),
 
-    getLeituras: (loteId: number): Promise<Leitura[]> =>
-      ipcRenderer.invoke('lotes:get-leituras', loteId),
+    getLeituras: (params: LeiturasPaginadasParams): Promise<LeiturasPaginadas> =>
+      ipcRenderer.invoke('lotes:get-leituras', params),
   },
 
   serial: {
     readAll: (payload: SerialReadAllPayload): Promise<SerialReadAllResult> =>
       ipcRenderer.invoke('serial:read-all', payload),
+  },
+
+  admin: {
+    listOperadores: (): Promise<Operador[]> =>
+      ipcRenderer.invoke('admin:list-operadores'),
+
+    createOperador: (payload: OperadorCreatePayload): Promise<OperadorCreateResult> =>
+      ipcRenderer.invoke('admin:create-operador', payload),
+
+    toggleOperador: (payload: OperadorTogglePayload): Promise<OperadorToggleResult> =>
+      ipcRenderer.invoke('admin:toggle-operador', payload),
   },
 
   onSerialComplete: (callback: () => void): (() => void) => {

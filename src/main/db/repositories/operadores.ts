@@ -15,3 +15,30 @@ export function findAllOperadores(): Operador[] {
     .prepare('SELECT * FROM operadores WHERE habilitado = 1 ORDER BY nome')
     .all() as Operador[]
 }
+
+export function listAllOperadores(): Operador[] {
+  const db = getDatabase()
+  return db
+    .prepare(
+      'SELECT * FROM operadores ORDER BY habilitado DESC, nome ASC'
+    )
+    .all() as Operador[]
+}
+
+export function createOperador(nome: string): Operador {
+  const db = getDatabase()
+  const result = db
+    .prepare('INSERT INTO operadores (nome, habilitado) VALUES (?, 1)')
+    .run(nome.trim())
+  return db
+    .prepare('SELECT * FROM operadores WHERE id = ?')
+    .get(result.lastInsertRowid) as Operador
+}
+
+export function toggleOperador(id: number, habilitado: boolean): void {
+  const db = getDatabase()
+  db.prepare('UPDATE operadores SET habilitado = ? WHERE id = ?').run(
+    habilitado ? 1 : 0,
+    id
+  )
+}

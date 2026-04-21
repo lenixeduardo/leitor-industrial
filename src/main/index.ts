@@ -3,6 +3,7 @@ import { join } from 'path'
 import { registerAuthHandlers } from './ipc/auth'
 import { registerLotesHandlers } from './ipc/lotes'
 import { registerSerialHandlers } from './ipc/serial'
+import { registerAdminHandlers } from './ipc/admin'
 import { runMigrations } from './db/migrations'
 import { closeDatabase } from './db/connection'
 
@@ -42,6 +43,7 @@ app.whenReady().then(() => {
   registerAuthHandlers()
   registerLotesHandlers()
   registerSerialHandlers()
+  registerAdminHandlers()
   createWindow()
 
   app.on('activate', () => {

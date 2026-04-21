@@ -27,6 +27,20 @@ export interface Leitura {
   coletado_em: string
 }
 
+export interface LeiturasPaginadasParams {
+  loteId: number
+  page: number
+  pageSize: number
+}
+
+export interface LeiturasPaginadas {
+  data: Leitura[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export interface LogAcesso {
   id: number
   operador_id: number | null
@@ -88,9 +102,29 @@ export interface SerialReadAllResult {
   error?: string
 }
 
+export interface OperadorCreatePayload {
+  nome: string
+}
+
+export interface OperadorCreateResult {
+  success: boolean
+  operador?: Operador
+  error?: string
+}
+
+export interface OperadorTogglePayload {
+  id: number
+  habilitado: boolean
+}
+
+export interface OperadorToggleResult {
+  success: boolean
+  error?: string
+}
+
 // ── Navegação ────────────────────────────────────────────────────────────────
 
-export type Page = 'hibernacao' | 'auth' | 'main' | 'lote'
+export type Page = 'hibernacao' | 'auth' | 'main' | 'lote' | 'admin'
 
 // ── API exposta via contextBridge ─────────────────────────────────────────────
 
@@ -102,10 +136,15 @@ export interface BatchReaderAPI {
     list: () => Promise<Lote[]>
     create: (payload: LoteCreatePayload) => Promise<LoteCreateResult>
     encerrar: (payload: LoteEncerrarPayload) => Promise<LoteEncerrarResult>
-    getLeituras: (loteId: number) => Promise<Leitura[]>
+    getLeituras: (params: LeiturasPaginadasParams) => Promise<LeiturasPaginadas>
   }
   serial: {
     readAll: (payload: SerialReadAllPayload) => Promise<SerialReadAllResult>
+  }
+  admin: {
+    listOperadores: () => Promise<Operador[]>
+    createOperador: (payload: OperadorCreatePayload) => Promise<OperadorCreateResult>
+    toggleOperador: (payload: OperadorTogglePayload) => Promise<OperadorToggleResult>
   }
   onSerialComplete: (callback: () => void) => () => void
 }

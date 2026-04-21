@@ -1,5 +1,5 @@
 import { getDatabase } from '../connection'
-import type { Leitura, SerialReadResult } from '../../../shared/types'
+import type { Leitura, LeiturasPaginadas, SerialReadResult } from '../../../shared/types'
 
 export function insertLeituras(
   loteId: number,
@@ -32,11 +32,29 @@ export function insertLeituras(
   insertAll(resultados)
 }
 
-export function getLeiturasByLote(loteId: number): Leitura[] {
+export function getLeiturasByLote(
+  loteId: number,
+  page: number,
+  pageSize: number
+): LeiturasPaginadas {
   const db = getDatabase()
-  return db
+  const offset = (page - 1) * pageSize
+
+  const { total } = db
+    .prepare('SELECT COUNT(*) AS total FROM leituras WHERE lote_id = ?')
+    .get(loteId) as { total: number }
+
+  const data = db
     .prepare(
-      'SELECT * FROM leituras WHERE lote_id = ? ORDER BY coletado_em DESC'
+      'SELECT * FROM leituras WHERE lote_id = ? ORDER BY coletado_em DESC LIMIT ? OFFSET ?'
     )
-    .all(loteId) as Leitura[]
+    .all(loteId, pageSize, offset) as Leitura[]
+
+  return {
+    data,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  }
 }
