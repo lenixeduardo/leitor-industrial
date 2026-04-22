@@ -1,0 +1,19 @@
+{
+  "name": "lenix-dev-tools",
+  "owner": {
+    "name": "Lenix Eduardo",
+    "email": "lenix.camargo@gmail.com"
+  },
+  "metadata": {
+    "description": "Marketplace de plugins para automação de desenvolvimento",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "obsidian-docs",
+      "source": "./plugins/obsidian-docs",
+      "description": "Gera documentação automática em Markdown para Obsidian",
+      "version": "1.0.0"
+    }
+  ]
+}
