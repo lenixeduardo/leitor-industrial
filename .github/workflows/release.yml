@@ -1,0 +1,69 @@
+name: Build & Release BatchReader
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publicar release no GitHub?'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: ${{ matrix.os-name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            os-name: Windows (NSIS x64)
+            platform: win
+          - os: ubuntu-22.04
+            os-name: Linux (AppImage x64)
+            platform: linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # serialport precisa de libudev-dev para compilar no Linux
+      - name: Instalar dependências de sistema (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev
+
+      # npm ci dispara postinstall → electron-builder install-app-deps
+      # que reconstrói better-sqlite3 e serialport para o ABI do Electron
+      - name: Instalar dependências npm
+        run: npm ci
+
+      - name: Build (electron-vite)
+        run: npm run build
+
+      - name: Empacotar e publicar release
+        run: npx electron-builder --${{ matrix.platform }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artefato (fallback se publish falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BatchReader-${{ matrix.os-name }}
+          path: dist/
+          if-no-files-found: warn
