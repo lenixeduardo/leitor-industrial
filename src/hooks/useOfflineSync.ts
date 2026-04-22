@@ -11,12 +11,13 @@ interface UseOfflineSyncReturn {
 }
 
 export function useOfflineSync(): UseOfflineSyncReturn {
-  const [isOnline, setIsOnline] = useState(true)
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  )
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
-    setIsOnline(navigator.onLine)
 
     async function updatePendingCount() {
       try {

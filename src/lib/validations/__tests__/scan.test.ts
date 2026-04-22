@@ -18,7 +18,8 @@ describe('scanSchema', () => {
   })
 
   it('rejects missing serial', () => {
-    const { serial: _, ...rest } = validPayload
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { serial: _serial, ...rest } = validPayload
     const result = scanSchema.safeParse(rest)
     expect(result.success).toBe(false)
   })
@@ -29,7 +30,8 @@ describe('scanSchema', () => {
   })
 
   it('rejects missing registrado_em', () => {
-    const { registrado_em: _, ...rest } = validPayload
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { registrado_em: _registrado_em, ...rest } = validPayload
     const result = scanSchema.safeParse(rest)
     expect(result.success).toBe(false)
   })
