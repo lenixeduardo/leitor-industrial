@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { getDatabase } from '@/lib/rxdb/database'
 
-type ScanState = 'idle' | 'scanning' | 'success' | 'error'
+type ScanState = 'idle' | 'scanning' | 'success' | 'error' | 'offline'
 
 interface ScanResult {
   serial: string
   nome: string | null
   registrado_em: string
+  savedLocally?: boolean
 }
 
 interface UseScannerReturn {
@@ -18,6 +20,17 @@ interface UseScannerReturn {
   stopScan: () => void
   submitManual: (serial: string) => Promise<void>
   reset: () => void
+}
+
+async function getCoords(): Promise<{ latitude: number; longitude: number } | undefined> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(undefined); return }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => resolve(undefined),
+      { timeout: 3000 }
+    )
+  })
 }
 
 export function useScanner(): UseScannerReturn {
@@ -46,25 +59,31 @@ export function useScanner(): UseScannerReturn {
     setError(null)
 
     const registrado_em = new Date().toISOString()
+    const coords = await getCoords()
 
-    let latitude: number | undefined
-    let longitude: number | undefined
-
+    // persist locally first (offline-first)
+    const localId = crypto.randomUUID()
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 })
+      const db = await getDatabase()
+      await db.leituras_pendentes.insert({
+        id: localId,
+        serial,
+        operario_id: 'pending',
+        registrado_em,
+        ...(coords ?? {}),
+        synced: false,
       })
-      latitude = position.coords.latitude
-      longitude = position.coords.longitude
     } catch {
-      // geolocation denied or unavailable — proceed without coordinates
+      // indexeddb unavailable in SSR/test — skip local save
     }
 
-    const payload = {
-      serial,
-      registrado_em,
-      ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
+    if (!navigator.onLine) {
+      setResult({ serial, nome: null, registrado_em, savedLocally: true })
+      setState('offline')
+      return
     }
+
+    const payload = { serial, registrado_em, ...(coords ?? {}) }
 
     try {
       const res = await fetch('/api/scan', {
@@ -79,6 +98,16 @@ export function useScanner(): UseScannerReturn {
       }
 
       const json = await res.json()
+
+      // mark local copy as synced
+      try {
+        const db = await getDatabase()
+        const doc = await db.leituras_pendentes.findOne(localId).exec()
+        await doc?.patch({ synced: true })
+      } catch {
+        // ignore
+      }
+
       setResult({
         serial: json.data.serial,
         nome: json.data.nome ?? null,

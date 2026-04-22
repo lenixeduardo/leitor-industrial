@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/layout/BottomNav'
+import OfflineBanner from '@/components/OfflineBanner'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSupabaseServerClient()
@@ -12,7 +13,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <main className="flex-1 pb-16">{children}</main>
+      <OfflineBanner />
+      <main className="flex-1 pb-16 pt-0">{children}</main>
       <BottomNav />
     </div>
   )
